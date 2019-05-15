@@ -1,0 +1,322 @@
+Install Django:
+pip install django==2.1.1
+
+Create Django project 'mysite' (creates 'mysite' directory):
+django-admin startproject mysite
+
+Change to 'mysite' directory created by this project:
+cd mysite
+
+Ran following in outer /mysite directory:
+python manage.py migrate
+
+Create superuser:
+winpty python manage.py createsuperuser
+(prompts for user name and password)
+
+Create 'polling' application:
+python manage.py startapp polling
+(creates new 'polling' directory)
+
+Initialized git:
+git init
+
+Created .gitignore file:
+*.pyc
+*.db
+*.sqlite3
+
+=========================================================================
+
+Created /mysite/mysite/templates/base.html:
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My Django Blog</title>
+  </head>
+  <body>
+    <div id="container">
+      <div id="content">
+      {% block content %}
+       [content will go here]
+      {% endblock %}
+      </div>
+    </div>
+  </body>
+</html>
+
+=========================================================================
+
+Updated /mysite/mysite/settings.py:
+Added 'polling' to INSTALLED_APPS section
+Added 'DIRS': [os.path.join(BASE_DIR, 'mysite/templates')], to TEMPLATES section
+
+=========================================================================
+
+Created /mysite/polling/models.py:
+from django.db import models
+
+class Poll(models.Model):
+    title = models.CharField(max_length=128)
+    text = models.TextField(blank=True)
+    score = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.title
+
+=========================================================================
+
+Ran following in outer /mysite directory:
+python manage.py makemigrations
+python manage.py migrate
+
+=========================================================================
+
+Created /mysite/polling/admin.py:
+from django.contrib import admin
+from polling.models import Poll
+
+admin.site.register(Poll)
+
+=========================================================================
+
+Start up server to go into admin section:
+python manage.py runserver 
+Browse to 'localhost:8000/admin/' and login
+Create polls for users to use
+
+=========================================================================
+
+Created /mysite/polling/templates/polling/list.html:
+{% extends "base.html" %}
+{% block content %}
+<h1>Polls</h1>
+{% for poll in polls %}
+    <div class="poll">
+        <h2>
+            <a href="{% url 'poll_detail' poll.pk %}">{{ poll.title }}</a>
+        </h2>
+    </div>
+{% endfor %}
+{% endblock %}
+
+=========================================================================
+
+Created /mysite/polling/templates/polling/detail.html:
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ poll.title }}</h1>
+<div class="poll-body">
+    {{ poll.text }}
+</div>
+<div class="poll-score">
+    Current score: {{ poll.score }}
+</div>
+<div class="poll-vote">
+    <form method="POST">
+        {% csrf_token %}
+        <input type="submit" name="vote" value="Yes">
+        <input type="submit" name="vote" value="No">
+    </form>
+</div>
+{% endblock %}
+
+=========================================================================
+
+Created /mysite/polling/views.py:
+from django.shortcuts import render
+from django.http import Http404
+from polling.models import Poll
+
+def list_view(request):
+    context = {'polls': Poll.objects.all()}
+    return render(request, 'polling/list.html', context)
+
+def detail_view(request, poll_id):
+    try:
+        poll = Poll.objects.get(pk=poll_id)
+    except Poll.DoesNotExist:
+        raise Http404
+
+    if request.method == "POST":
+        if request.POST.get("vote") == "Yes":
+            poll.score += 1
+        else:
+            poll.score -= 1
+        poll.save()
+
+    context = {'poll': poll}
+    return render(request, 'polling/detail.html', context)
+
+=========================================================================
+
+Created /mysite/mysite/urls.py:
+from django.contrib import admin
+from django.urls import path, include  # <-- Make sure you have both of these imports.
+
+urlpatterns = [
+    path('polling/', include('polling.urls')),  # <-- Add this
+    path('admin/', admin.site.urls),
+]
+
+=========================================================================
+
+Created /mysite/polling/urls.py:
+from django.urls import path
+from polling.views import list_view, detail_view
+
+urlpatterns = [
+    path('', list_view, name="poll_index"),
+    path('polls/<int:poll_id>/', detail_view, name="poll_detail"),
+]
+
+=========================================================================
+
+See it in action:
+python manage.py runserver
+
+Go to browser and access 'localhost:8000/polling/'
+
+=========================================================================
+=========================================================================
+=========================================================================
+=========================================================================
+
+Create the Blogging application:
+python manage.py startapp blogging
+
+=========================================================================
+
+Updated /mysite/mysite/settings.py:
+Added 'blogging' to INSTALLED_APPS section
+
+=========================================================================
+
+Created /mysite/blogging/models.py:
+from django.db import models
+from django.contrib.auth.models import User
+
+class Post(models.Model):
+    title = models.CharField(max_length=128)
+    text = models.TextField(blank=True)
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_date = models.DateTimeField(auto_now_add=True)
+    modified_date = models.DateTimeField(auto_now=True)
+    published_date = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return self.title
+
+=========================================================================
+
+Ran following in outer /mysite directory:
+python manage.py makemigrations blogging
+python manage.py migrate
+
+=========================================================================
+
+Using shell commands to post blog entries:
+$ python manage.py shell
+>>> from blogging.models import Post
+>>> from django.contrib.auth.models import User
+>>> p1 = Post(title="My First Post", text="Here is the first post")
+>>> p1.save()                       # <--- This won't work because we must have an author from User
+>>> all_users = User.objects.all()  # <--- This will correct the problem...
+>>> p1.author = all_users[0]
+>>> p1.save()                       # <--- Now this works!
+>>> p1.created_date                 # <--- Just to see this was created
+>>> p1.modified_date                # <--- Just to see this was created
+>>> p2 = Post(title="Another post", text="The second one created", author=all_users[0]).save()
+>>> p3 = Post(title="The third one", text="With the word 'heffalump'", author=all_users[0]).save()
+>>> p4 = Post(title="Posters are a great decoration", text="When you are a poor college student", author=all_users[0]).save()
+>>> Post.objects.count()            # <--- Should show 4, but now shows 8
+>>> 
+>>> 
+
+=========================================================================
+
+Using query sets:
+>>> a = Post.objects.all()                   # <-- no query yet
+>>> b = a.filter(title__icontains="post")    # <-- not yet
+>>> c = b.exclude(text__contains="created")  # <-- nope
+>>> [(p.title, p.text) for p in c]           # <-- This will issue the query...
+
+   [('My First Post (updated)', "This is the first post I've written"),
+    ('Posters are a great decoration', 'When you are a poor college student')]
+
+>>> a.count()                                # <-- immediately executes an SQL query
+>>> print(c.query)                           # <-- show the SQL query
+
+Some queries:
+>>> [p.pk for p in Post.objects.all().order_by('created_date')]
+    [1, 2, 3, 4]
+>>> [p.pk for p in Post.objects.all().order_by('-created_date')]
+    [4, 3, 2, 1]
+>>> [p.pk for p in Post.objects.filter(title__contains='post')]
+    [1, 2, 4]
+>>> [p.pk for p in Post.objects.exclude(title__contains='post')]
+    [3]
+>>> qs = Post.objects.exclude(title__contains='post')
+>>> qs = qs.exclude(id__exact=3)
+>>> [p.pk for p in qs]
+    []
+>>> qs = Post.objects.exclude(title__contains='post', id__exact=3)
+>>> [p.pk for p in qs]
+    [1, 2, 3, 4]
+
+Some updates:
+>>> qs = Post.objects.all()
+>>> [p.published_date for p in qs]
+    [None, None, None, None]
+>>> from datetime import datetime
+>>> from django.utils import timezone
+>>> now = timezone.now()
+>>> qs.update(published_date=now)
+    4
+>>> [p.published_date for p in qs]
+
+   [datetime.datetime(2017, 11, 5, 0, 43, 58, 844772, tzinfo=<UTC>),
+    datetime.datetime(2017, 11, 5, 0, 43, 58, 844772, tzinfo=<UTC>),
+    datetime.datetime(2017, 11, 5, 0, 43, 58, 844772, tzinfo=<UTC>),
+    datetime.datetime(2017, 11, 5, 0, 43, 58, 844772, tzinfo=<UTC>)]
+
+=========================================================================
+=========================================================================
+=========================================================================
+
+Changed /mysite/blogging/admin.py:
+from django.contrib import admin
+from blogging.models import Post
+
+admin.site.register(Post)
+
+=========================================================================
+
+Created /mysite/blogging/fixtures directory and installed blogging_test_fixture.json file
+
+=========================================================================
+
+Created /mysite/blogging/tests.py:
+from django.test import TestCase
+from django.contrib.auth.models import User
+from blogging.models import Post
+
+class PostTestCase(TestCase):
+    fixtures = ['blogging_test_fixture.json', ]
+
+    def setUp(self):
+        self.user = User.objects.get(pk=1)
+        
+    def test_string_representation(self):
+        expected = "This is a title"
+        p1 = Post(title=expected)
+        actual = str(p1)
+        self.assertEqual(expected, actual)
+
+=========================================================================
+
+Run this test:
+python manage.py test blogging
+
+=========================================================================
+
