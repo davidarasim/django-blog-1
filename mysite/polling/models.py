@@ -1,5 +1,5 @@
 from django.db import models
-
+print('[DKA /polling/models.py]') # DKA
 class Poll(models.Model):
     title = models.CharField(max_length=128)
     text = models.TextField(blank=True)
